@@ -1,13 +1,16 @@
-from models import Model
+from Pyramidnet import Model
 import time
 
 import torch
 import torch.nn as nn
+from Cutout import Cutout
 
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset, DataLoader
 import torch.nn.init as init
+
+
 
 SAVEPATH = ''
 WEIGHTDECAY = 1e-4
@@ -17,7 +20,7 @@ MOMENTUM = 0.9
 BATCHSIZE = 128
 LR = 0.05
 EPOCHS = 300
-PRINTFREQ = 400
+PRINTFREQ = 300
 LR_INCREMENT = 1.0
 LR_DECREMENT = 1.0
 LR_UPDATERATE = 400
@@ -92,12 +95,11 @@ def main():
     model = Model()
     print(model.name())
     model = model.cuda()
-    LR = 0
     
     #model.load_state_dict(torch.load(SAVEPATH+'model_weight.pth'))
 
     ##### optimizer / learning rate scheduler / criterion #####
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.05, 
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1, 
                                 momentum=0.9, weight_decay=5e-4)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [50, 100], gamma=0.1)
     criterion = torch.nn.CrossEntropyLoss()
@@ -109,21 +111,16 @@ def main():
     # Check number of parameters your model
     pytorch_total_params = sum(p.numel() for p in model.parameters())
     print(f"Number of parameters: {pytorch_total_params}")
-    if int(pytorch_total_params) > 2000000:
-        print('Your model has the number of parameters more than 2 millions..')
-        return
+    #if int(pytorch_total_params) > 2000000:
+    #    print('Your model has the number of parameters more than 2 millions..')
+    #    return
 
     normalize = transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
-                                     std=[00.2023, 0.1994, 0.2010])
+                                     std=[0.2023, 0.1994, 0.2010])
     train_transform = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
-        #transforms.RandomRotation(90),
-        transforms.RandomGrayscale(),
-        #transforms.RandomPerspective(),
-        #transforms.RandomAffine(0, shear=30, scale=(0.8, 1.2)),
-        #transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+        Cutout(mask_size=16, p=0.5, cutout_inside=True),
         transforms.ToTensor(),
         normalize
     ])
@@ -147,15 +144,6 @@ def main():
     for epoch in range(0,EPOCHS):
         print("\n----- epoch: {}, lr: {} , decay: {}-----".format(
             epoch, optimizer.param_groups[0]["lr"], optimizer.param_groups[0]["weight_decay"]))
-        
-        #if (epoch+1) % 10 == 0:
-        #   optimizer.param_groups[0]["lr"] *= 0.5
-        #elif epoch > 150:
-        #    optimizer.param_groups[0]["lr"] = 0.001
-        #elif epoch > 100:
-        #    optimizer.param_groups[0]["lr"] = 0.01  
-
-        print(optimizer.param_groups[0]["lr"])
         
         # train for one epoch
         start_time = time.time()        
