@@ -1,4 +1,5 @@
 from Pyramidnet import Model
+import cbam_cifar10
 import time
 
 import torch
@@ -10,6 +11,8 @@ import torchvision.transforms as transforms
 from torch.utils.data import Dataset, DataLoader
 import torch.nn.init as init
 
+from matplotlib import pyplot as plt
+import numpy as np
 
 
 SAVEPATH = ''
@@ -17,10 +20,10 @@ WEIGHTDECAY = 1e-4
 WEIGHTDECAY_INCREMENT = 1.0
 WEIGHTDECAY_DECREMENT = 1.0
 MOMENTUM = 0.9
-BATCHSIZE = 128
+BATCHSIZE = 4
 LR = 0.05
-EPOCHS = 300
-PRINTFREQ = 300
+EPOCHS = 15
+PRINTFREQ = 10000
 LR_INCREMENT = 1.0
 LR_DECREMENT = 1.0
 LR_UPDATERATE = 400
@@ -92,20 +95,21 @@ def accuracy(output, target, topk=(1,)):
         return res
 
 def main():
-    model = Model()
-    print(model.name())
+    model = cbam_cifar10.ResNet18(use_cbam_block = True, use_cbam_class = False)#Model()
+    #print(model.name())
     model = model.cuda()
     
     #model.load_state_dict(torch.load(SAVEPATH+'model_weight.pth'))
 
     ##### optimizer / learning rate scheduler / criterion #####
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.1, 
-                                momentum=0.9, weight_decay=5e-4)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.001, 
+                                momentum=0.9, weight_decay=0)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [50, 100], gamma=0.1)
     criterion = torch.nn.CrossEntropyLoss()
     ###########################################################
 
-    
+    epochRange = np.arange(0,EPOCHS)
+    lossRange = []
     criterion = criterion.cuda()
 
     # Check number of parameters your model
@@ -120,7 +124,7 @@ def main():
     train_transform = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
-        Cutout(mask_size=16, p=0.5, cutout_inside=True),
+        #Cutout(mask_size=16, p=0.5, cutout_inside=True),
         transforms.ToTensor(),
         normalize
     ])
@@ -148,7 +152,7 @@ def main():
         # train for one epoch
         start_time = time.time()        
         last_top1_acc = train(train_loader, epoch, model, optimizer, criterion)
-        if epoch % 10 == 0:
+        if epoch % 10 == 0 or epoch == EPOCHS-1:
             val_top1_acc = validation(val_loader, epoch, model, optimizer, criterion)
 
         
@@ -156,8 +160,9 @@ def main():
         print('==> {:.2f} seconds to train this epoch\n'.format(
             elapsed_time))
 
-        # learning rate scheduling
+        lossRange.append(last_top1_acc)
 
+        # learning rate scheduling        
         scheduler.step()
 
         # Save model each epoch
@@ -165,6 +170,9 @@ def main():
 
     print(f"Last Top-1 Accuracy: {last_top1_acc}")
     print(f"Number of parameters: {pytorch_total_params}")
+    
+    plt.plot(epochRange, lossRange)
+    plt.show()
 
 
 

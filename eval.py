@@ -6,7 +6,7 @@ import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset, DataLoader
 
-from models import Model
+import cbam_cifar10
 import time
 
 import torch
@@ -38,7 +38,7 @@ def eval():
     test_dataset = TestImageFolder('./dataset/test', transform=test_transform)
     test_loader = DataLoader(test_dataset, batch_size=BATCHSIZE, num_workers=4, shuffle=False)
 
-    model = Model()
+    model = cbam_cifar10.ResNet18(use_cbam_class = True)
     model = model.cuda()
     #model = torch.nn.DataParallel(model).cuda()
 
